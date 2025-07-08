@@ -7,3 +7,14 @@
   *.xcuserdatad
   *.swp
   .DS_Store
+
+ # Environment files
+  .env
+  .env.local
+  .env.production
+  .env.development
+
+  # API Keys and Secrets
+  *secret*
+  *key*
+  config.plist

@@ -8,7 +8,10 @@
 import SwiftUI
 
 @main
-struct BitelistApp: App {
+struct BiteListApp: App {
+    init() {
+        print("🏠 Current working directory: \(FileManager.default.currentDirectoryPath)")
+    }
     var body: some Scene {
         WindowGroup {
             HomeView()

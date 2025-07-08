@@ -1,0 +1,9 @@
+  # Xcode
+  DerivedData/
+  *.xcworkspace
+  xcuserdata/
+  *.xcuserstate
+  *.moved-aside
+  *.xcuserdatad
+  *.swp
+  .DS_Store

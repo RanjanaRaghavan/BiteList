@@ -22,12 +22,12 @@ struct AddDishView: View {
     @State private var showingAPISetup = false
     
     // Initialize services (in production, these would be injected)
-    private let videoAnalysisService: VideoAnalysisService
+    private let contentExtractionService: ContentExtractionService
     
     init(viewModel: DishViewModel) {
         self.viewModel = viewModel
         let openAIService = OpenAIService(apiKey: ConfigurationService.shared.openAIAPIKey)
-        self.videoAnalysisService = VideoAnalysisService(openAIService: openAIService)
+        self.contentExtractionService = ContentExtractionService(openAIService: openAIService)
     }
     
     var body: some View {
@@ -51,7 +51,7 @@ struct AddDishView: View {
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
                     
-                    Text("Describe the ingredients shown in the video to help with analysis")
+                    Text("Describe the ingredients if caption/comment extraction doesn't work")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
@@ -79,7 +79,7 @@ struct AddDishView: View {
                             } else {
                                 Image(systemName: "magnifyingglass")
                             }
-                            Text(isAnalyzing ? "Analyzing..." : "Analyze Video for Ingredients")
+                            Text(isAnalyzing ? "Analyzing..." : "Extract Ingredients")
                         }
                     }
                     .disabled(videoURL.isEmpty || isAnalyzing)
@@ -106,7 +106,7 @@ struct AddDishView: View {
             .alert("Success", isPresented: $showingSuccess) {
                 Button("OK") { }
             } message: {
-                Text("Ingredients extracted successfully!")
+                Text("Ingredients extracted from content successfully!")
             }
         }
     }
@@ -118,14 +118,14 @@ struct AddDishView: View {
         
         Task {
             do {
-                let ingredients = try await videoAnalysisService.analyzeVideoForIngredients(
-                    videoURL: videoURL,
+                let ingredients = try await contentExtractionService.extractIngredients(
+                    from: videoURL,
                     userDescription: videoDescription.isEmpty ? nil : videoDescription
                 )
                 
                 await MainActor.run {
                     if ingredients.isEmpty {
-                        ingredientsText = "No ingredients found in the video. Please add them manually."
+                        ingredientsText = "No ingredients found. Please add them manually."
                     } else {
                         ingredientsText = ingredients.joined(separator: "\n")
                         showingSuccess = true

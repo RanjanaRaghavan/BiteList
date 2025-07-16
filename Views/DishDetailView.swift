@@ -10,6 +10,7 @@ import SwiftUI
 struct DishDetailView: View {
     @ObservedObject var viewModel: DishViewModel
     let dish: Dish
+    @State private var showingShareSheet = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -17,8 +18,24 @@ struct DishDetailView: View {
                 .font(.largeTitle)
                 .bold()
             
-            Text("Shopping List")
-                .font(.headline)
+            HStack {
+                Text("Shopping List")
+                    .font(.headline)
+                
+                Spacer()
+                
+                // Share button
+                Button(action: {
+                    showingShareSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share List")
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                }
+            }
             
             ForEach(dish.ingredients) { ingredient in
                 HStack {
@@ -55,6 +72,9 @@ struct DishDetailView: View {
         }
         .padding()
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(activityItems: [SharingService.shared.createShoppingListText(for: dish)])
+        }
     }
 }
 

@@ -80,6 +80,71 @@ class OpenAIService: ObservableObject {
         return try parseIngredientsFromResponse(responseString)
     }
     
+    func extractIngredientsFromRecipe(_ recipeText: String) async throws -> [String] {
+        let prompt = """
+        Extract ONLY the ingredients from the following recipe text. Focus on food ingredients and ignore cooking instructions, steps, or equipment.
+        
+        Recipe Text: \(recipeText)
+        
+        Instructions:
+        1. Only list food ingredients that are mentioned in the recipe
+        2. Do not include cooking instructions, steps, or equipment
+        3. Return ingredients as a simple list, one per line
+        4. If no ingredients are mentioned, return "No ingredients found"
+        5. Clean up ingredient names (remove measurements if they're not part of the ingredient name)
+        
+        Please provide the ingredients:
+        """
+        
+        let requestBody: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": [
+                [
+                    "role": "system",
+                    "content": "You are a helpful assistant that extracts ingredients from recipe text. Only mention ingredients that are explicitly listed in the recipe."
+                ],
+                [
+                    "role": "user",
+                    "content": prompt
+                ]
+            ],
+            "max_tokens": 500,
+            "temperature": 0.1
+        ]
+        
+        guard let url = URL(string: baseURL) else {
+            throw OpenAIServiceError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        } catch {
+            throw OpenAIServiceError.jsonSerializationError
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenAIServiceError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 401 {
+                print("❌ 401 Unauthorized - Check your OpenAI API key")
+                throw OpenAIServiceError.apiError(statusCode: httpResponse.statusCode)
+            }
+            throw OpenAIServiceError.apiError(statusCode: httpResponse.statusCode)
+        }
+        
+        let responseString = String(data: data, encoding: .utf8) ?? ""
+        return try parseIngredientsFromResponse(responseString)
+    }
+    
     private func parseIngredientsFromResponse(_ response: String) throws -> [String] {
         // Parse the JSON response from OpenAI
         guard let data = response.data(using: .utf8) else {

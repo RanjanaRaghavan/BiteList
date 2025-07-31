@@ -23,8 +23,13 @@ class ConfigurationService {
         return EnvironmentService.shared.isOpenAIConfigured
     }
     
-    // Convenience method to create .env file
-    func setupAPIKey(_ apiKey: String) {
-        EnvironmentService.shared.createEnvFile(with: apiKey)
+    var youtubeAPIKey: String {
+        return EnvironmentService.shared.youtubeAPIKey
     }
+    
+    var isYouTubeConfigured: Bool {
+        return EnvironmentService.shared.isYouTubeConfigured
+    }
+    
+
 } 

@@ -18,13 +18,31 @@ struct RecipeTile: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Dish image
-            Image(dish.imageName)
-                .resizable()
-                .scaledToFill()
-                .frame(height: 140)
-                .clipped()
-                .cornerRadius(16, corners: [.topLeft, .topRight])
+            // Dish image - use thumbnail URL if available, otherwise fallback to local image
+            if let thumbnailURL = dish.thumbnailURL, !thumbnailURL.isEmpty {
+                AsyncImage(url: URL(string: thumbnailURL)) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 140)
+                        .clipped()
+                        .cornerRadius(16, corners: [.topLeft, .topRight])
+                } placeholder: {
+                    Image(dish.imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 140)
+                        .clipped()
+                        .cornerRadius(16, corners: [.topLeft, .topRight])
+                }
+            } else {
+                Image(dish.imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 140)
+                    .clipped()
+                    .cornerRadius(16, corners: [.topLeft, .topRight])
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(dish.name)

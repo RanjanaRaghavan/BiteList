@@ -20,6 +20,8 @@ struct AddDishView: View {
     @State private var errorMessage = ""
     @State private var showingSuccess = false
     @State private var showingAPISetup = false
+    @State private var thumbnailURL: String?
+    @State private var selectedCategoryID: UUID?
     
     // Initialize services (in production, these would be injected)
     private let contentExtractionService: ContentExtractionService
@@ -38,9 +40,14 @@ struct AddDishView: View {
                 }
                 
                 Section(header: Text("Video URL")) {
-                    TextField("Paste Instagram Reel or YouTube Short URL", text: $videoURL)
+                    TextField("Paste any YouTube or Instagram video URL", text: $videoURL)
                         .keyboardType(.URL)
                         .autocapitalization(.none)
+                    
+                    Text("The app will automatically extract ingredients from the video")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                 }
                 
                 Section(header: Text("Video Description (Optional)")) {
@@ -51,7 +58,7 @@ struct AddDishView: View {
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                         )
                     
-                    Text("Describe the ingredients if caption/comment extraction doesn't work")
+                    Text("Only needed if automatic extraction doesn't work")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
@@ -60,13 +67,6 @@ struct AddDishView: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .padding(.top, 4)
-                        
-                        Button("Try Demo Description") {
-                            videoDescription = DemoConfiguration.getRandomSampleDescription()
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.top, 4)
                     }
                 }
                 
@@ -77,12 +77,34 @@ struct AddDishView: View {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             } else {
-                                Image(systemName: "magnifyingglass")
+                                Image(systemName: "wand.and.stars")
                             }
-                            Text(isAnalyzing ? "Analyzing..." : "Extract Ingredients")
+                            Text(isAnalyzing ? "Extracting ingredients..." : "Extract Ingredients Automatically")
                         }
                     }
                     .disabled(videoURL.isEmpty || isAnalyzing)
+                }
+                
+                Section(header: Text("Category (Optional)")) {
+                    if viewModel.categories.isEmpty {
+                        Text("No categories available. Create categories to organize your recipes.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Picker("Category", selection: $selectedCategoryID) {
+                            Text("No Category").tag(nil as UUID?)
+                            ForEach(viewModel.categories) { category in
+                                HStack {
+                                    Circle()
+                                        .fill(category.swiftUIColor)
+                                        .frame(width: 12, height: 12)
+                                    Text(category.name)
+                                }
+                                .tag(category.id as UUID?)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                    }
                 }
                 
                 Section(header: Text("Ingredients")) {
@@ -106,7 +128,7 @@ struct AddDishView: View {
             .alert("Success", isPresented: $showingSuccess) {
                 Button("OK") { }
             } message: {
-                Text("Ingredients extracted from content successfully!")
+                Text("Ingredients extracted automatically from the video!")
             }
         }
     }
@@ -116,23 +138,50 @@ struct AddDishView: View {
         
         isAnalyzing = true
         
+        // Debug: Check API configuration
+        print("🔧 Debug: OpenAI configured: \(ConfigurationService.shared.isOpenAIConfigured)")
+        print("🔧 Debug: YouTube configured: \(ConfigurationService.shared.isYouTubeConfigured)")
+        print("🔧 Debug: Video URL: \(videoURL)")
+        print("🔧 Debug: User description: \(videoDescription.isEmpty ? "None" : videoDescription)")
+        
         Task {
             do {
+                // Extract ingredients
                 let ingredients = try await contentExtractionService.extractIngredients(
                     from: videoURL,
                     userDescription: videoDescription.isEmpty ? nil : videoDescription
                 )
                 
+                // Extract thumbnail if it's a YouTube video
+                if videoURL.contains("youtube.com") || videoURL.contains("youtu.be") {
+                    do {
+                        if let videoID = contentExtractionService.youtubeService?.extractVideoID(from: videoURL) {
+                            let thumbnail = try await contentExtractionService.youtubeService?.getVideoThumbnail(videoID: videoID)
+                            await MainActor.run {
+                                self.thumbnailURL = thumbnail
+                            }
+                        }
+                    } catch {
+                        print("⚠️ Could not extract thumbnail: \(error.localizedDescription)")
+                    }
+                }
+                
+                print("🔧 Debug: Extracted ingredients count: \(ingredients.count)")
+                print("🔧 Debug: Ingredients: \(ingredients)")
+                
                 await MainActor.run {
                     if ingredients.isEmpty {
                         ingredientsText = "No ingredients found. Please add them manually."
+                        print("🔧 Debug: No ingredients found, showing manual message")
                     } else {
                         ingredientsText = ingredients.joined(separator: "\n")
                         showingSuccess = true
+                        print("🔧 Debug: Ingredients found, showing success")
                     }
                     isAnalyzing = false
                 }
             } catch {
+                print("🔧 Debug: Error occurred: \(error.localizedDescription)")
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     showingError = true
@@ -146,7 +195,14 @@ struct AddDishView: View {
         let ingredients = ingredientsText
             .split(separator: "\n")
             .map { Ingredient(name: String($0), quantity: "", bought: false) }
-        let newDish = Dish(name: name, videoURL: videoURL, ingredients: ingredients, imageName: "pasta")
+        let newDish = Dish(
+            name: name, 
+            videoURL: videoURL, 
+            ingredients: ingredients, 
+            imageName: "pasta", 
+            thumbnailURL: thumbnailURL,
+            categoryID: selectedCategoryID
+        )
         viewModel.addDish(newDish)
         presentationMode.wrappedValue.dismiss()
     }

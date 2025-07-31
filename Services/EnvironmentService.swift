@@ -95,29 +95,17 @@ class EnvironmentService {
         return key != "your-openai-api-key-here" && !key.isEmpty
     }
     
-    // Method to create .env file in documents directory
-    func createEnvFile(with apiKey: String) {
-        let envContent = """
-        # OpenAI API Configuration
-        OPENAI_API_KEY=\(apiKey)
-        
-        # Optional: Other API configurations for future use
-        # YOUTUBE_API_KEY=your-youtube-api-key-here
-        # INSTAGRAM_ACCESS_TOKEN=your-instagram-access-token-here
-        """
-        
-        if let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let envFileURL = documentsPath.appendingPathComponent(".env")
-            
-            do {
-                try envContent.write(to: envFileURL, atomically: true, encoding: .utf8)
-                print("Created .env file at: \(envFileURL.path)")
-                
-                // Reload environment variables
-                loadEnvironmentFile()
-            } catch {
-                print("Error creating .env file: \(error)")
-            }
-        }
+    // Convenience method for YouTube API key
+    var youtubeAPIKey: String {
+        let key = getValue(for: "YOUTUBE_API_KEY", defaultValue: "your-youtube-api-key-here")
+        print("🔑 YouTube API Key loaded: \(key.prefix(10))...") // Only show first 10 chars for security
+        return key
     }
+    
+    var isYouTubeConfigured: Bool {
+        let key = youtubeAPIKey
+        return key != "your-youtube-api-key-here" && !key.isEmpty
+    }
+    
+
 } 
